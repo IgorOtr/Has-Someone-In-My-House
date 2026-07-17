@@ -1,0 +1,21 @@
+.venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+.git/
+.claude/
+
+# Segredos: nunca vão para dentro da imagem — as variáveis de ambiente são
+# configuradas no EasyPanel (ou docker run -e / --env-file), não no build.
+.env
+
+# Imagens de detecção reais e o modelo local não fazem parte do build:
+# o Dockerfile baixa os pesos do YOLO11n durante o build (ver RUN abaixo),
+# e as imagens salvas devem ficar num volume persistente, não na imagem.
+detections/*
+!detections/.gitkeep
+*.pt
+
+context.md

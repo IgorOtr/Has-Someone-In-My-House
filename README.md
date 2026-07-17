@@ -487,6 +487,36 @@ will be slower than on the Mac M3 this project was built on — the capture
 interval in `web/static/js/webcam.js` (`CAPTURE_INTERVAL_MS`, 700ms by
 default) can be raised to reduce load if needed.
 
+## Deploying the dashboard (Docker / EasyPanel)
+
+Only the web dashboard (`web/server.py`) is meant to run on a server —
+`app/main.py` (the local monitor) needs a physically attached webcam and
+stays on whatever machine has one.
+
+The `Dockerfile` at the project root builds an image for the dashboard,
+including the YOLO11n inference used by both the alert history and the
+browser webcam feature:
+
+* System libraries for `opencv-python` (`libgl1`, `libglib2.0-0`) are
+  installed even though the container never opens a GUI window.
+* `torch`/`torchvision` are installed from PyTorch's **CPU-only** index
+  explicitly — the default PyPI wheel pulls in several GB of CUDA/GPU
+  runtime that a typical VPS (no GPU) never uses.
+* The YOLO11n weights are downloaded **during the build**, not on first
+  request, so the container doesn't depend on outbound internet at
+  runtime and the first browser session isn't slow.
+* `CMD` binds to `0.0.0.0` (not `127.0.0.1`) and runs a **single** Uvicorn
+  worker — this app keeps process-memory state (the rate limiters, the
+  monitor-process tracker, the loaded YOLO model, the inference lock) that
+  is not shared across multiple workers/replicas.
+
+Build and run locally to sanity-check before deploying:
+
+```bash
+docker build -t hassomeoneinmyhouse-web .
+docker run --rm -p 8000:8000 --env-file .env hassomeoneinmyhouse-web
+```
+
 ## Project structure
 
 ```text
