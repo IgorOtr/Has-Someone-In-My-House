@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Usar minha câmera — Monitor de Detecção de Pessoas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-full bg-gray-950 text-gray-100">
+  <div class="max-w-3xl mx-auto px-4 py-8">
+    <header class="mb-8 flex items-start justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-semibold">Usar minha câmera</h1>
+        <p class="text-gray-400 text-sm mt-1">
+          Transforma a webcam deste dispositivo numa câmera do monitor, enquanto esta
+          aba estiver aberta.
+        </p>
+      </div>
+      <a
+        href="/"
+        class="shrink-0 text-sm px-3 py-1.5 rounded-md bg-gray-800 hover:bg-gray-700 transition inline-block"
+      >
+        Voltar ao painel
+      </a>
+    </header>
+
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 mb-6 text-sm text-gray-300">
+      Ao clicar em "Ativar câmera", o navegador vai pedir permissão para usar sua
+      webcam. O vídeo é enviado a este servidor só enquanto a sessão estiver ativa,
+      para detectar a presença de pessoas; imagens só são salvas quando uma detecção
+      é confirmada. Feche esta aba ou clique em "Encerrar" para parar a qualquer momento.
+    </div>
+
+    <div class="relative bg-black rounded-lg overflow-hidden aspect-video mb-4">
+      <video id="preview" class="w-full h-full object-contain" autoplay muted playsinline></video>
+      <div
+        id="preview-placeholder"
+        class="absolute inset-0 flex items-center justify-center text-gray-500 text-sm"
+      >
+        A câmera ainda não foi ativada.
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 mb-6">
+      <button
+        id="toggle-btn"
+        class="text-sm px-4 py-2 rounded-md bg-green-600 hover:bg-green-500 text-white font-medium transition"
+      >
+        Ativar câmera
+      </button>
+      <span id="connection-status" class="text-sm text-gray-400"></span>
+    </div>
+
+    <section id="status-cards" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></section>
+
+    <p id="error-message" class="hidden text-sm text-red-400 mt-4"></p>
+  </div>
+
+  <canvas id="capture-canvas" class="hidden"></canvas>
+
+  <script src="/js/auth.js"></script>
+  <script src="/js/webcam.js"></script>
+</body>
+</html>

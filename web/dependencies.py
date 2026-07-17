@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from functools import lru_cache
 from typing import Iterator
 
@@ -12,7 +13,10 @@ from sqlalchemy import select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.alert_recorder import AlertRecorder
 from app.config import AppConfig, load_config
+from app.detector import PersonDetector
+from app.image_manager import ImageManager
 from web.auth_config import AuthConfig, load_auth_config
 from web.db import build_engine, build_session_factory
 from web.db_models import UserModel
@@ -39,6 +43,43 @@ _monitor_manager = MonitorProcessManager()
 def get_monitor_manager() -> MonitorProcessManager:
     """Retorna a única instância do gerenciador do monitor, compartilhada no processo."""
     return _monitor_manager
+
+
+@lru_cache
+def get_person_detector() -> PersonDetector:
+    """Carrega o YOLO11n uma única vez, compartilhado entre todas as sessões
+    de webcam do navegador (carregar o modelo é custoso; nunca por conexão)."""
+    settings = get_settings()
+    return PersonDetector(
+        model_path=settings.model_path,
+        image_size=settings.model_image_size,
+        confidence_threshold=settings.confidence_threshold,
+    )
+
+
+@lru_cache
+def get_image_manager() -> ImageManager:
+    """Cria (uma vez) o ImageManager compartilhado, na mesma pasta usada pelo monitor físico."""
+    settings = get_settings()
+    return ImageManager(
+        image_directory=settings.image_directory,
+        image_format=settings.image_format,
+        jpeg_quality=settings.image_jpeg_quality,
+        retention_hours=settings.image_retention_hours,
+    )
+
+
+@lru_cache
+def get_alert_recorder() -> AlertRecorder:
+    """Cria (uma vez) o AlertRecorder compartilhado (histórico + envio por WhatsApp)."""
+    return AlertRecorder.create()
+
+
+@lru_cache
+def get_detector_lock() -> asyncio.Lock:
+    """Lock único para serializar chamadas ao modelo entre sessões de webcam
+    simultâneas (evita concorrência no mesmo modelo YOLO)."""
+    return asyncio.Lock()
 
 
 @lru_cache
@@ -70,6 +111,28 @@ def get_db() -> Iterator[Session]:
 _bearer_scheme = HTTPBearer(auto_error=False)
 
 
+def resolve_user_from_token(token: str, auth_settings: AuthConfig, db: Session) -> UserModel:
+    """Decodifica um token JWT e resolve o usuário correspondente.
+
+    Reaproveitado por :func:`get_current_user` (header ``Authorization``)
+    e pelo endpoint de WebSocket da webcam do navegador (token na primeira
+    mensagem, já que WebSocket do navegador não permite header customizado).
+
+    Raises:
+        HTTPException: 401 se o token for inválido/expirado ou o usuário
+            não existir mais.
+    """
+    try:
+        email = decode_access_token(token, auth_settings.jwt_secret_key)
+    except jwt.PyJWTError as exc:
+        raise HTTPException(status_code=401, detail="Invalid or expired token.") from exc
+
+    user = db.execute(select(UserModel).where(UserModel.email == email)).scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=401, detail="User not found.")
+    return user
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
     auth_settings: AuthConfig = Depends(get_auth_settings),
@@ -78,16 +141,7 @@ def get_current_user(
     """Resolve o usuário autenticado a partir do token ``Authorization: Bearer``."""
     if credentials is None:
         raise HTTPException(status_code=401, detail="Not authenticated.")
-
-    try:
-        email = decode_access_token(credentials.credentials, auth_settings.jwt_secret_key)
-    except jwt.PyJWTError as exc:
-        raise HTTPException(status_code=401, detail="Invalid or expired token.") from exc
-
-    user = db.execute(select(UserModel).where(UserModel.email == email)).scalar_one_or_none()
-    if user is None:
-        raise HTTPException(status_code=401, detail="User not found.")
-    return user
+    return resolve_user_from_token(credentials.credentials, auth_settings, db)
 
 
 # Um limitador por rota (login/cadastro), compartilhado entre as requisições do processo.

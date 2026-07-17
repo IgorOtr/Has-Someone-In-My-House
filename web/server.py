@@ -17,8 +17,14 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
 from web.db import ensure_database_exists, ensure_schema_migrations, init_models
-from web.dependencies import get_auth_settings, get_engine
-from web.routers import alerts_router, auth_router, detections_router, monitor_router
+from web.dependencies import get_auth_settings, get_engine, get_person_detector
+from web.routers import (
+    alerts_router,
+    auth_router,
+    detections_router,
+    monitor_router,
+    webcam_router,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +44,19 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     engine = get_engine()
     init_models(engine)
     ensure_schema_migrations(engine)
+
+    # Carrega o YOLO11n já no startup, para a primeira sessão de webcam do
+    # navegador não pagar esse custo. Best-effort: se falhar (ex.: modelo
+    # ausente e sem internet para baixar), só desativa a webcam do
+    # navegador — o resto do dashboard continua funcionando normalmente.
+    try:
+        get_person_detector()
+    except Exception:
+        logger.warning(
+            "Browser webcam monitoring is disabled: could not load the YOLO model.",
+            exc_info=True,
+        )
+
     yield
 
 
@@ -58,6 +77,7 @@ app.include_router(auth_router.router)
 app.include_router(detections_router.router)
 app.include_router(alerts_router.router)
 app.include_router(monitor_router.router)
+app.include_router(webcam_router.router)
 
 # Serve o front-end estático (index/login/register/alerts + JS) na raiz.
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

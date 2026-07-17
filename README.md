@@ -274,9 +274,10 @@ PyMySQL) and JWT bearer tokens for authentication.
 **Structure:** `web/server.py` only builds the FastAPI app (middleware,
 lifespan, mounting the static frontend) and includes the routers under
 `web/routers/` — one module per area (`auth_router`, `detections_router`,
-`alerts_router`, `monitor_router`), each just wiring HTTP endpoints to the
-service modules (`auth_service.py`, `alert_service.py`, `gallery.py`,
-`monitor_process.py`) that hold the actual logic.
+`alerts_router`, `monitor_router`, `webcam_router`), each just wiring HTTP
+(or WebSocket) endpoints to the service modules (`auth_service.py`,
+`alert_service.py`, `gallery.py`, `monitor_process.py`,
+`webcam_session.py`) that hold the actual logic.
 
 ### Authentication
 
@@ -447,6 +448,45 @@ on disk — if the image was later deleted (manually or by retention
 cleanup), the entry still shows its message and timestamp, with an "Imagem
 indisponível" placeholder instead of a thumbnail.
 
+### Browser webcam monitoring (for VPS deployments)
+
+`app/main.py` opens the webcam with `cv2.VideoCapture` **on whatever machine
+runs `python run.py`** — there is no browser-based camera capture involved
+in that path. Deploying the whole stack to a VPS with no physical camera
+attached means that process has nothing to open.
+
+For that case, any logged-in user can instead turn **their own browser's
+webcam** into a monitoring source, from `/webcam.html` (linked from the
+dashboard as **"Usar minha câmera"**). The browser asks for camera
+permission (a native prompt the user must accept — this app cannot bypass
+it), then streams JPEG frames to the server over a WebSocket
+(`/ws/webcam`); the server runs the same `PersonDetector`, saves detection
+images with the same `ImageManager`, and records/sends alerts with the same
+`AlertRecorder` the physical monitor uses — same `IMAGE_DIRECTORY`, same
+`alerts` table, same WhatsApp delivery. Only the sliding-window tracker and
+cooldown state are per-browser-session (`web/webcam_session.py`); the model
+itself is loaded once and shared (with an `asyncio.Lock` serializing
+inference across simultaneous sessions). This app treats all logged-in
+accounts as one shared household, exactly like the rest of the dashboard —
+there is no per-user data isolation, and any active browser session behaves
+like one more physical camera would.
+
+The JWT is sent as the **first WebSocket message** (`{"token": "..."}`),
+not as a query parameter, so it does not end up in access/proxy logs. The
+local monitor (`run.py` / the "Monitorar" button) is untouched by this and
+keeps working exactly as before, for whoever runs this on a machine with an
+actual webcam attached.
+
+**Deployment requirement:** `getUserMedia` (the browser camera API) only
+works in a secure context — `https://` or `localhost`. On a VPS this means
+you need real TLS in front of Uvicorn (e.g. nginx or Caddy with Let's
+Encrypt); without it, visitors' browsers will not even show the camera
+permission prompt. A VPS also almost certainly has no MPS/GPU, so YOLO11n
+inference falls back to CPU (`select_device()` already handles this) and
+will be slower than on the Mac M3 this project was built on — the capture
+interval in `web/static/js/webcam.js` (`CAPTURE_INTERVAL_MS`, 700ms by
+default) can be raised to reduce load if needed.
+
 ## Project structure
 
 ```text
@@ -473,8 +513,10 @@ HasSomeoneInMyHosue/
 │   │   ├── auth_router.py
 │   │   ├── detections_router.py
 │   │   ├── alerts_router.py
-│   │   └── monitor_router.py
+│   │   ├── monitor_router.py
+│   │   └── webcam_router.py
 │   ├── dependencies.py
+│   ├── webcam_session.py
 │   ├── gallery.py
 │   ├── monitor_process.py
 │   ├── auth_config.py
@@ -493,10 +535,12 @@ HasSomeoneInMyHosue/
 │       ├── login.html
 │       ├── register.html
 │       ├── alerts.html
+│       ├── webcam.html
 │       └── js/
 │           ├── app.js
 │           ├── auth.js
-│           └── alerts.js
+│           ├── alerts.js
+│           └── webcam.js
 ├── tests/
 │   ├── test_detection_tracker.py
 │   ├── test_capture_controller.py
@@ -517,6 +561,8 @@ HasSomeoneInMyHosue/
 │       ├── test_security.py
 │       ├── test_rate_limiter.py
 │       ├── test_db_migrations.py
+│       ├── test_webcam_session.py
+│       ├── test_webcam_router.py
 │       └── test_server.py
 ├── .env.example
 ├── .gitignore
