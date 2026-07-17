@@ -24,7 +24,7 @@ class InvalidCredentialsError(Exception):
 _DUMMY_PASSWORD_HASH = hash_password("dummy-password-for-timing-safety")
 
 
-def register_user(db: Session, email: str, password: str) -> UserModel:
+def register_user(db: Session, email: str, password: str, phone_number: str) -> UserModel:
     normalized_email = email.strip().lower()
 
     existing = db.execute(
@@ -33,7 +33,11 @@ def register_user(db: Session, email: str, password: str) -> UserModel:
     if existing is not None:
         raise EmailAlreadyRegisteredError(f"Email {normalized_email} is already registered.")
 
-    user = UserModel(email=normalized_email, hashed_password=hash_password(password))
+    user = UserModel(
+        email=normalized_email,
+        hashed_password=hash_password(password),
+        phone_number=phone_number,
+    )
     db.add(user)
     try:
         db.commit()

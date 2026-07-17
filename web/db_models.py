@@ -15,6 +15,10 @@ class UserModel(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     hashed_password = Column(String(255), nullable=False)
+    # Nullable at the DB level so adding this column to an already-deployed
+    # `users` table (via ensure_schema_migrations) never fails on existing
+    # rows; new registrations always require it (see RegisterRequest).
+    phone_number = Column(String(20), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 

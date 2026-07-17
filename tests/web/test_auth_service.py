@@ -31,35 +31,41 @@ def db_session():
 
 
 def test_register_user_creates_a_user_with_hashed_password(db_session):
-    user = register_user(db_session, "user@example.com", "supersecret")
+    user = register_user(db_session, "user@example.com", "supersecret", "5524981402661")
 
     assert user.id is not None
     assert user.email == "user@example.com"
     assert user.hashed_password != "supersecret"
 
 
+def test_register_user_stores_phone_number(db_session):
+    user = register_user(db_session, "user@example.com", "supersecret", "5524981402661")
+
+    assert user.phone_number == "5524981402661"
+
+
 def test_register_user_normalizes_email_case_and_whitespace(db_session):
-    user = register_user(db_session, "  User@Example.com  ", "supersecret")
+    user = register_user(db_session, "  User@Example.com  ", "supersecret", "5524981402661")
 
     assert user.email == "user@example.com"
 
 
 def test_register_user_rejects_duplicate_email(db_session):
-    register_user(db_session, "user@example.com", "supersecret")
+    register_user(db_session, "user@example.com", "supersecret", "5524981402661")
 
     with pytest.raises(EmailAlreadyRegisteredError):
-        register_user(db_session, "user@example.com", "anotherpassword")
+        register_user(db_session, "user@example.com", "anotherpassword", "5524981402661")
 
 
 def test_register_user_rejects_duplicate_email_case_insensitively(db_session):
-    register_user(db_session, "user@example.com", "supersecret")
+    register_user(db_session, "user@example.com", "supersecret", "5524981402661")
 
     with pytest.raises(EmailAlreadyRegisteredError):
-        register_user(db_session, "USER@EXAMPLE.COM", "anotherpassword")
+        register_user(db_session, "USER@EXAMPLE.COM", "anotherpassword", "5524981402661")
 
 
 def test_authenticate_user_succeeds_with_correct_credentials(db_session):
-    register_user(db_session, "user@example.com", "supersecret")
+    register_user(db_session, "user@example.com", "supersecret", "5524981402661")
 
     user = authenticate_user(db_session, "user@example.com", "supersecret")
 
@@ -67,7 +73,7 @@ def test_authenticate_user_succeeds_with_correct_credentials(db_session):
 
 
 def test_authenticate_user_rejects_wrong_password(db_session):
-    register_user(db_session, "user@example.com", "supersecret")
+    register_user(db_session, "user@example.com", "supersecret", "5524981402661")
 
     with pytest.raises(InvalidCredentialsError):
         authenticate_user(db_session, "user@example.com", "wrongpassword")
@@ -101,7 +107,7 @@ def test_register_user_handles_concurrent_duplicate_insert(db_session, monkeypat
     """Simulates a race where two requests both pass the SELECT check before
     either commits; the DB's unique constraint must still be converted into
     EmailAlreadyRegisteredError instead of an unhandled IntegrityError."""
-    register_user(db_session, "user@example.com", "supersecret")
+    register_user(db_session, "user@example.com", "supersecret", "5524981402661")
 
     original_execute = db_session.execute
 
@@ -113,4 +119,4 @@ def test_register_user_handles_concurrent_duplicate_insert(db_session, monkeypat
     monkeypatch.setattr(db_session, "execute", fake_execute)
 
     with pytest.raises(EmailAlreadyRegisteredError):
-        register_user(db_session, "user@example.com", "anotherpassword")
+        register_user(db_session, "user@example.com", "anotherpassword", "5524981402661")

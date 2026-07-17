@@ -204,8 +204,16 @@ def test_monitor_stop_without_running_returns_409(tmp_path):
     assert response.status_code == 409
 
 
-def register(client: TestClient, email: str = "user@example.com", password: str = "supersecret"):
-    return client.post("/api/auth/register", json={"email": email, "password": password})
+def register(
+    client: TestClient,
+    email: str = "user@example.com",
+    password: str = "supersecret",
+    phone_number: str = "5524981402661",
+):
+    return client.post(
+        "/api/auth/register",
+        json={"email": email, "password": password, "phone_number": phone_number},
+    )
 
 
 def login(client: TestClient, email: str = "user@example.com", password: str = "supersecret"):
@@ -220,6 +228,7 @@ def test_register_creates_a_user(tmp_path):
     assert response.status_code == 201
     body = response.json()
     assert body["email"] == "user@example.com"
+    assert body["phone_number"] == "5524981402661"
     assert "id" in body
     assert "password" not in body
 
@@ -247,6 +256,45 @@ def test_register_rejects_invalid_email(tmp_path):
     response = register(client, email="not-an-email")
 
     assert response.status_code == 422
+
+
+def test_register_rejects_missing_phone_number(tmp_path):
+    client = make_client(tmp_path, authenticated=False)
+
+    response = client.post(
+        "/api/auth/register",
+        json={"email": "user@example.com", "password": "supersecret"},
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "phone_number",
+    [
+        "5524 98140 2661",  # spaces
+        "+5524981402661",  # leading +
+        "5524-981-402-661",  # dashes
+        "552498140266a",  # letters
+        "123456789",  # too short (9 digits)
+        "1234567890123456",  # too long (16 digits)
+    ],
+)
+def test_register_rejects_invalid_phone_number_format(tmp_path, phone_number):
+    client = make_client(tmp_path, authenticated=False)
+
+    response = register(client, phone_number=phone_number)
+
+    assert response.status_code == 422
+
+
+def test_register_accepts_the_example_phone_number_format(tmp_path):
+    client = make_client(tmp_path, authenticated=False)
+
+    response = register(client, phone_number="5524981402661")
+
+    assert response.status_code == 201
+    assert response.json()["phone_number"] == "5524981402661"
 
 
 def test_login_returns_token_for_valid_credentials(tmp_path):
@@ -287,6 +335,7 @@ def test_me_endpoint_returns_the_logged_in_user(tmp_path):
 
     assert response.status_code == 200
     assert response.json()["email"] == "user@example.com"
+    assert response.json()["phone_number"] == "5524981402661"
 
 
 def test_protected_endpoint_rejects_missing_token(tmp_path):

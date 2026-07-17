@@ -23,6 +23,22 @@
         />
       </div>
       <div>
+        <label class="block text-sm text-gray-400 mb-1" for="phone-number">Telefone (WhatsApp)</label>
+        <input
+          id="phone-number"
+          type="tel"
+          required
+          inputmode="numeric"
+          pattern="\d{10,15}"
+          placeholder=""
+          autocomplete="tel"
+          class="w-full rounded-md bg-gray-800 border border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <p class="text-xs text-gray-500 mt-1">
+          Só números, com código do país e DDD, sem espaços ou símbolos. Ex.: 5524981402661.
+        </p>
+      </div>
+      <div>
         <label class="block text-sm text-gray-400 mb-1" for="password">Senha</label>
         <input
           id="password"
@@ -71,6 +87,7 @@
       event.preventDefault();
 
       const email = document.getElementById("email").value;
+      const phoneNumber = document.getElementById("phone-number").value;
       const password = document.getElementById("password").value;
       const confirmPassword = document.getElementById("confirm-password").value;
       const errorMessage = document.getElementById("error-message");
@@ -87,7 +104,7 @@
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, phone_number: phoneNumber }),
       });
 
       if (!response.ok) {

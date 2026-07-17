@@ -29,7 +29,7 @@ from web.auth_service import (
     authenticate_user,
     register_user,
 )
-from web.db import ensure_database_exists, init_models
+from web.db import ensure_database_exists, ensure_schema_migrations, init_models
 from web.db_models import UserModel
 from web.dependencies import (
     enforce_login_rate_limit,
@@ -74,7 +74,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             "secret in .env before exposing this dashboard beyond localhost."
         )
     ensure_database_exists(auth_settings)
-    init_models(get_engine())
+    engine = get_engine()
+    init_models(engine)
+    ensure_schema_migrations(engine)
     yield
 
 
@@ -104,10 +106,12 @@ def register(
     if not auth_settings.allow_public_registration:
         raise HTTPException(status_code=403, detail="Public registration is disabled.")
     try:
-        user = register_user(db, payload.email, payload.password)
+        user = register_user(db, payload.email, payload.password, payload.phone_number)
     except EmailAlreadyRegisteredError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return UserResponse(id=user.id, email=user.email, created_at=user.created_at)
+    return UserResponse(
+        id=user.id, email=user.email, phone_number=user.phone_number, created_at=user.created_at
+    )
 
 
 @app.post(
@@ -133,7 +137,10 @@ def login(
 @app.get("/api/auth/me", response_model=UserResponse)
 def read_current_user(current_user: UserModel = Depends(get_current_user)) -> UserResponse:
     return UserResponse(
-        id=current_user.id, email=current_user.email, created_at=current_user.created_at
+        id=current_user.id,
+        email=current_user.email,
+        phone_number=current_user.phone_number,
+        created_at=current_user.created_at,
     )
 
 

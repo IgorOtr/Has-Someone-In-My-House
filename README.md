@@ -279,6 +279,14 @@ requires a logged-in user. Passwords are hashed with PBKDF2-HMAC-SHA256,
 standard-library only — no compiled dependency; sessions are stateless JWTs
 signed with `JWT_SECRET_KEY`.
 
+Registration also collects a `phone_number` — digits only, country code +
+area code + number, no `+`/spaces/dashes (e.g. `5524981402661`). It is
+stored on the user record for a future WhatsApp delivery feature (not
+implemented yet); it plays no role in login itself. Existing users created
+before this field existed keep `phone_number: null` until they re-register
+or a future "update profile" endpoint is added — there is no automatic
+backfill.
+
 Additional hardening in this layer:
 
 * **Constant-time login** — `authenticate_user` always runs a password hash
@@ -334,7 +342,7 @@ and log in at `/login.html`. It exposes:
 
 | Endpoint | Description |
 | --- | --- |
-| `POST /api/auth/register` | Creates a user from `{email, password}` (min. 8 characters). |
+| `POST /api/auth/register` | Creates a user from `{email, password, phone_number}` (password min. 8 characters; phone_number 10–15 digits, no `+`/spaces/dashes). |
 | `POST /api/auth/login` | Returns a JWT `access_token` for valid credentials. |
 | `GET /api/auth/me` | Returns the currently authenticated user. |
 | `GET /api/status` | Detection count, latest detection time, and the active configuration. |
@@ -453,6 +461,7 @@ HasSomeoneInMyHosue/
 │       ├── test_alert_service.py
 │       ├── test_security.py
 │       ├── test_rate_limiter.py
+│       ├── test_db_migrations.py
 │       └── test_server.py
 ├── .env.example
 ├── .gitignore

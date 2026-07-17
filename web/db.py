@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -13,6 +13,13 @@ from web.auth_config import AuthConfig
 logger = logging.getLogger(__name__)
 
 Base = declarative_base()
+
+# Additive columns introduced after a table's first release. `create_all`
+# never alters an existing table, so an already-deployed database needs
+# these applied by hand. Each entry: (table, column, DDL used to add it).
+_ADDITIVE_COLUMNS = [
+    ("users", "phone_number", "ALTER TABLE users ADD COLUMN phone_number VARCHAR(20)"),
+]
 
 
 def ensure_database_exists(auth_config: AuthConfig) -> None:
@@ -49,3 +56,25 @@ def init_models(engine: Engine) -> None:
     from web import db_models  # noqa: F401  (registers models on Base.metadata)
 
     Base.metadata.create_all(bind=engine)
+
+
+def ensure_schema_migrations(engine: Engine) -> None:
+    """Apply small additive schema changes that ``create_all`` cannot.
+
+    ``Base.metadata.create_all`` only creates tables that do not exist yet;
+    it never adds a column to a table that is already there. Call this
+    after :func:`init_models` so a database created fresh in this same call
+    already has every column and each check below is a no-op.
+    """
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+
+    for table, column, ddl in _ADDITIVE_COLUMNS:
+        if table not in existing_tables:
+            continue  # init_models just created it with every current column
+        existing_columns = {col["name"] for col in inspector.get_columns(table)}
+        if column in existing_columns:
+            continue
+        with engine.begin() as connection:
+            connection.execute(text(ddl))
+        logger.info("Added column '%s.%s'", table, column)
