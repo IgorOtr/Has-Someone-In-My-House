@@ -13,6 +13,7 @@ from typing import List
 import cv2
 import numpy as np
 
+from app.alert_recorder import AlertRecorder
 from app.camera import Camera, CameraError
 from app.capture_controller import CaptureController
 from app.config import ConfigError, load_config
@@ -61,6 +62,16 @@ def _draw_preview_boxes(frame: np.ndarray, detections: List[Detection]) -> None:
             2,
             cv2.LINE_AA,
         )
+
+
+def _build_alert_message(detections: List[Detection]) -> str:
+    person_count = len(detections)
+    highest_confidence = max((d.confidence for d in detections), default=0.0)
+    plural = "s" if person_count != 1 else ""
+    return (
+        f"Pessoa detectada ({person_count} pessoa{plural}, "
+        f"confiança máxima {highest_confidence:.0%})"
+    )
 
 
 def _draw_hud(
@@ -129,6 +140,7 @@ def run() -> None:
         width=config.camera_width,
         height=config.camera_height,
     )
+    alert_recorder = AlertRecorder.create()
 
     cleanup_interval_seconds = config.image_cleanup_interval_minutes * 60
     last_cleanup_time = time.monotonic()
@@ -194,6 +206,9 @@ def run() -> None:
                         tracker.reset()
                         status = STATUS_IMAGE_SAVED
                         logger.info("Image saved, ready for next detection")
+                        alert_recorder.record_alert(
+                            _build_alert_message(last_detections), saved_path
+                        )
                     else:
                         status = STATUS_SAVE_ERROR
                 elif not capture_controller.can_capture():

@@ -36,6 +36,15 @@ class DetectionItem(BaseModel):
     image_url: str
 
 
+class AlertItem(BaseModel):
+    id: int
+    message: str
+    image_path: str
+    image_url: str
+    sent: bool
+    created_at: datetime
+
+
 class MonitorStatusResponse(BaseModel):
     running: bool
     pid: Optional[int]

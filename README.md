@@ -35,6 +35,7 @@ The application is split into small, single-responsibility modules under
 | `detection_tracker.py` | Sliding-window confirmation logic. Pure Python, no CV/YOLO dependency. |
 | `capture_controller.py` | Cooldown state machine with an injectable clock. |
 | `image_manager.py` | Annotates frames, saves JPEGs with unique names, prunes expired images. |
+| `alert_recorder.py` | Best-effort MySQL alert history (see section 21) — never blocks the monitor if the database is unreachable. |
 | `main.py` | Composition root: wires the components together and runs the capture loop. |
 
 `run.py` at the project root is the executable entry point.
@@ -340,6 +341,7 @@ and log in at `/login.html`. It exposes:
 | `GET /api/detections` | Paginated list of saved detections (`limit`, `offset`). |
 | `GET /api/detections/{filename}/image` | The raw JPEG for a given detection. |
 | `DELETE /api/detections/{filename}` | Deletes a saved detection image. |
+| `GET /api/alerts` | Paginated alert history (`limit`, `offset`), most recent first. |
 | `GET /api/monitor/status` | Whether the monitor is currently running, and its PID. |
 | `POST /api/monitor/start` | Starts `run.py` as a child process. |
 | `POST /api/monitor/stop` | Stops the running monitor process. |
@@ -368,6 +370,32 @@ stops `run.py` for you, so you do not have to keep a separate terminal open:
   run `python run.py` manually in a separate terminal, the two will compete
   for the same webcam.
 
+### Alert history
+
+Every time the monitor saves a detection image, it also writes a row to an
+`alerts` table in the same MySQL database (`message`, `image_path`, `sent`,
+`created_at`). This is a durable history the owner can fall back on if a
+future WhatsApp message fails to send or gets lost/deleted on their phone.
+
+**WhatsApp delivery itself is not implemented yet** — `sent` always starts
+as `false`, and nothing currently reads or updates it. This groundwork only
+persists the alert.
+
+This is wired directly into `app/main.py`, not the web dashboard: alert
+recording works whether or not `run_web.py` is running, as long as MySQL is
+reachable using the same `DB_*` variables as the dashboard. If the database
+is unreachable when the monitor starts, it logs one warning and disables
+alert recording for that run — saving detection images and the rest of the
+monitor keep working normally either way.
+
+Browse the history at `/alerts.html` (linked from the dashboard as
+**"Histórico de Alertas"**), or via `GET /api/alerts` (`limit`, `offset`;
+requires authentication like the rest of the dashboard), ordered from most
+recent to oldest. Each entry shows its saved image when the file is still
+on disk — if the image was later deleted (manually or by retention
+cleanup), the entry still shows its message and timestamp, with an "Imagem
+indisponível" placeholder instead of a thumbnail.
+
 ## Project structure
 
 ```text
@@ -382,6 +410,7 @@ HasSomeoneInMyHosue/
 │   ├── detection_tracker.py
 │   ├── capture_controller.py
 │   ├── image_manager.py
+│   ├── alert_recorder.py
 │   └── logging_config.py
 ├── detections/
 │   └── .gitkeep
@@ -393,6 +422,7 @@ HasSomeoneInMyHosue/
 │   ├── monitor_process.py
 │   ├── auth_config.py
 │   ├── auth_service.py
+│   ├── alert_service.py
 │   ├── security.py
 │   ├── rate_limiter.py
 │   ├── db.py
@@ -402,20 +432,25 @@ HasSomeoneInMyHosue/
 │       ├── index.html
 │       ├── login.html
 │       ├── register.html
+│       ├── alerts.html
 │       └── js/
 │           ├── app.js
-│           └── auth.js
+│           ├── auth.js
+│           └── alerts.js
 ├── tests/
 │   ├── test_detection_tracker.py
 │   ├── test_capture_controller.py
 │   ├── test_image_manager.py
 │   ├── test_config.py
+│   ├── test_alert_recorder.py
+│   ├── test_main_alert_message.py
 │   └── web/
 │       ├── conftest.py
 │       ├── test_gallery.py
 │       ├── test_monitor_process.py
 │       ├── test_auth_config.py
 │       ├── test_auth_service.py
+│       ├── test_alert_service.py
 │       ├── test_security.py
 │       ├── test_rate_limiter.py
 │       └── test_server.py

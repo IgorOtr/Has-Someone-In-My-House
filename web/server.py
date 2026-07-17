@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from app.config import AppConfig
+from web.alert_service import list_alerts
 from web.auth_config import AuthConfig
 from web.auth_service import (
     EmailAlreadyRegisteredError,
@@ -48,6 +49,7 @@ from web.monitor_process import (
     MonitorProcessManager,
 )
 from web.schemas import (
+    AlertItem,
     DetectionItem,
     LoginRequest,
     MonitorStatusResponse,
@@ -185,6 +187,27 @@ def get_detection_image(
         raise HTTPException(status_code=404, detail="Detection image not found.")
     media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     return FileResponse(path, media_type=media_type)
+
+
+@app.get("/api/alerts", response_model=List[AlertItem])
+def list_alerts_endpoint(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+) -> List[AlertItem]:
+    alerts = list_alerts(db, limit=limit, offset=offset)
+    return [
+        AlertItem(
+            id=alert.id,
+            message=alert.message,
+            image_path=alert.image_path,
+            image_url=f"/api/detections/{Path(alert.image_path).name}/image",
+            sent=alert.sent,
+            created_at=alert.created_at,
+        )
+        for alert in alerts
+    ]
 
 
 @app.delete("/api/detections/{filename}", status_code=204)

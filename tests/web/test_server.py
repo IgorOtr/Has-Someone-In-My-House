@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 
 from app.config import load_config
 from tests.web.conftest import TEST_AUTH_SETTINGS
+from web.alert_service import create_alert
 from web.dependencies import get_auth_settings, get_current_user, get_monitor_manager, get_settings
 from web.monitor_process import MonitorAlreadyRunningError, MonitorNotRunningError
 from web.server import app
@@ -374,3 +375,62 @@ def test_responses_include_basic_security_headers(tmp_path):
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["x-frame-options"] == "DENY"
     assert response.headers["referrer-policy"] == "no-referrer"
+
+
+def make_alert(db_session_factory, message="Pessoa detectada", image_path="detections/detection_1.jpg"):
+    session = db_session_factory()
+    try:
+        return create_alert(session, message, image_path)
+    finally:
+        session.close()
+
+
+def test_list_alerts_requires_authentication(tmp_path):
+    client = make_client(tmp_path, authenticated=False)
+
+    assert client.get("/api/alerts").status_code == 401
+
+
+def test_list_alerts_returns_empty_list_when_none_exist(tmp_path):
+    client = make_client(tmp_path)
+
+    response = client.get("/api/alerts")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_list_alerts_orders_most_recent_first(tmp_path, db_session_factory):
+    make_alert(db_session_factory, message="Primeiro alerta")
+    make_alert(db_session_factory, message="Segundo alerta")
+    client = make_client(tmp_path)
+
+    response = client.get("/api/alerts")
+
+    body = response.json()
+    assert [item["message"] for item in body] == ["Segundo alerta", "Primeiro alerta"]
+
+
+def test_list_alerts_includes_image_url_and_sent_status(tmp_path, db_session_factory):
+    make_alert(
+        db_session_factory,
+        message="Pessoa detectada",
+        image_path="detections/detection_20260716_100000_000000.jpg",
+    )
+    client = make_client(tmp_path)
+
+    response = client.get("/api/alerts")
+
+    body = response.json()[0]
+    assert body["image_url"] == "/api/detections/detection_20260716_100000_000000.jpg/image"
+    assert body["sent"] is False
+
+
+def test_list_alerts_respects_limit_and_offset(tmp_path, db_session_factory):
+    for i in range(5):
+        make_alert(db_session_factory, message=f"Alerta {i}", image_path=f"detections/{i}.jpg")
+    client = make_client(tmp_path)
+
+    response = client.get("/api/alerts?limit=2&offset=2")
+
+    assert len(response.json()) == 2
