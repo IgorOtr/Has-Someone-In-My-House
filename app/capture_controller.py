@@ -1,4 +1,4 @@
-"""Cooldown management deciding when a new detection image may be saved."""
+"""Controle de cooldown: decide quando uma nova imagem de detecção pode ser salva."""
 
 from __future__ import annotations
 
@@ -9,17 +9,17 @@ ClockFn = Callable[[], float]
 
 
 class CaptureController:
-    """Decides whether a new capture is allowed, enforcing a cooldown and a
-    post-confirmation capture delay.
+    """Decide se uma nova captura é permitida, aplicando cooldown e um
+    atraso pós-confirmação (capture delay).
 
-    The cooldown only starts after :meth:`notify_saved` is called, which
-    must happen strictly after the image has been persisted successfully.
+    O cooldown só começa depois que :meth:`notify_saved` é chamado, o que
+    deve acontecer estritamente após a imagem ter sido salva com sucesso.
 
-    A capture is not taken the instant a detection is confirmed: callers
-    must first report the confirmation via
-    :meth:`notify_detection_confirmed`, and :meth:`is_capture_due` only
-    turns true once ``capture_delay_seconds`` have elapsed since that
-    confirmation (and the cooldown, if any, also allows it).
+    Uma captura não é feita no instante em que a detecção é confirmada:
+    quem chama deve primeiro reportar a confirmação via
+    :meth:`notify_detection_confirmed`, e :meth:`is_capture_due` só retorna
+    verdadeiro depois que ``capture_delay_seconds`` tiver passado desde
+    essa confirmação (e o cooldown, se houver, também permitir).
     """
 
     def __init__(
@@ -39,28 +39,28 @@ class CaptureController:
         self._pending_since: Optional[float] = None
 
     def can_capture(self) -> bool:
-        """Return True when the cooldown period has elapsed."""
+        """Retorna True quando o período de cooldown já passou."""
         if self._last_capture_time is None:
             return True
         return (self._clock() - self._last_capture_time) >= self._cooldown_seconds
 
     def notify_detection_confirmed(self) -> None:
-        """Mark the start of a confirmed detection episode.
+        """Marca o início de um episódio de detecção confirmada.
 
-        Idempotent: calling this repeatedly while the same episode is still
-        confirmed keeps the original timestamp, so the delay is measured
-        from the first confirmation, not the last call.
+        Idempotente: chamadas repetidas enquanto o mesmo episódio segue
+        confirmado mantêm o timestamp original, então o atraso é medido a
+        partir da primeira confirmação, não da última chamada.
         """
         if self._pending_since is None:
             self._pending_since = self._clock()
 
     def cancel_pending_capture(self) -> None:
-        """Discard a pending capture, e.g. when the person leaves the frame
-        before the capture delay elapses."""
+        """Descarta uma captura pendente, ex.: quando a pessoa sai do
+        quadro antes do atraso de captura terminar."""
         self._pending_since = None
 
     def is_capture_due(self) -> bool:
-        """Return True once the capture delay has elapsed and the cooldown allows it."""
+        """Retorna True quando o atraso de captura já passou e o cooldown permite."""
         if self._pending_since is None:
             return False
         if (self._clock() - self._pending_since) < self._capture_delay_seconds:
@@ -68,18 +68,18 @@ class CaptureController:
         return self.can_capture()
 
     def notify_saved(self) -> None:
-        """Record that an image was just saved successfully, starting the cooldown."""
+        """Registra que uma imagem acabou de ser salva com sucesso, iniciando o cooldown."""
         self._last_capture_time = self._clock()
         self._pending_since = None
 
     def cooldown_remaining_seconds(self) -> float:
-        """Return the remaining cooldown time, or 0 when not in cooldown."""
+        """Retorna o tempo restante de cooldown, ou 0 se não estiver em cooldown."""
         if self._last_capture_time is None:
             return 0.0
         remaining = self._cooldown_seconds - (self._clock() - self._last_capture_time)
         return max(0.0, remaining)
 
     def reset(self) -> None:
-        """Clear the cooldown and pending-capture state."""
+        """Limpa o estado de cooldown e de captura pendente."""
         self._last_capture_time = None
         self._pending_since = None

@@ -1,4 +1,4 @@
-"""Pydantic response models for the web dashboard API."""
+"""Modelos Pydantic de requisição/resposta da API do dashboard web."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-# Country code + area code + number, digits only, no "+"/spaces/dashes —
-# e.g. "5524981402661" (55 = Brazil, 24 = area code, 981402661 = number).
+# Código do país + DDD + número, só dígitos, sem "+"/espaços/traços —
+# ex.: "5524981402661" (55 = Brasil, 24 = DDD, 981402661 = número).
 _PHONE_NUMBER_PATTERN = re.compile(r"^\d{10,15}$")
 
 
@@ -23,6 +23,8 @@ def _validate_phone_number(value: str) -> str:
 
 
 class RegisterRequest(BaseModel):
+    """Corpo da requisição de cadastro de um novo usuário."""
+
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     phone_number: str = Field(min_length=10, max_length=15)
@@ -34,11 +36,15 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
+    """Corpo da requisição de login."""
+
     email: EmailStr
     password: str
 
 
 class UserResponse(BaseModel):
+    """Dados públicos de um usuário (sem a senha)."""
+
     id: int
     email: str
     phone_number: Optional[str]
@@ -46,11 +52,15 @@ class UserResponse(BaseModel):
 
 
 class TokenResponse(BaseModel):
+    """Resposta do login: o token de acesso JWT."""
+
     access_token: str
     token_type: str = "bearer"
 
 
 class DetectionItem(BaseModel):
+    """Um item da lista de detecções salvas."""
+
     filename: str
     detected_at: datetime
     size_bytes: int
@@ -58,6 +68,8 @@ class DetectionItem(BaseModel):
 
 
 class AlertItem(BaseModel):
+    """Um item do histórico de alertas."""
+
     id: int
     message: str
     image_path: str
@@ -67,11 +79,15 @@ class AlertItem(BaseModel):
 
 
 class MonitorStatusResponse(BaseModel):
+    """Estado atual do processo do monitor."""
+
     running: bool
     pid: Optional[int]
 
 
 class StatusResponse(BaseModel):
+    """Resumo do estado do monitor e da configuração ativa."""
+
     total_detections: int
     latest_detection_at: Optional[datetime]
     image_directory: str

@@ -1,4 +1,4 @@
-"""Detection image annotation, persistence and retention cleanup."""
+"""Anotação, persistência e limpeza por retenção das imagens de detecção."""
 
 from __future__ import annotations
 
@@ -22,10 +22,10 @@ _FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 
 class ImageManager:
-    """Persists annotated detection images and prunes old ones.
+    """Salva imagens de detecção anotadas e remove as antigas.
 
-    This class does not depend on the YOLO model; it only consumes plain
-    :class:`~app.models.Detection` values.
+    Esta classe não depende do modelo YOLO; ela só consome valores simples
+    de :class:`~app.models.Detection`.
     """
 
     def __init__(
@@ -47,12 +47,12 @@ class ImageManager:
     def save_detection_image(
         self, frame: np.ndarray, detections: List[Detection]
     ) -> Optional[Path]:
-        """Annotate a copy of the frame and save it as JPEG.
+        """Anota uma cópia do frame e a salva como JPEG.
 
         Returns:
-            The full path of the saved file, or ``None`` if saving failed.
-            On failure, no exception is raised so the caller can keep
-            monitoring the webcam.
+            O caminho completo do arquivo salvo, ou ``None`` se o
+            salvamento falhar. Em caso de falha, nenhuma exceção é
+            levantada, para que quem chamou continue monitorando a webcam.
         """
         annotated = self._annotate_frame(frame, detections)
         file_path = self._build_unique_path()
@@ -128,14 +128,14 @@ class ImageManager:
         return self._image_directory / filename
 
     def cleanup_expired_images(self) -> List[Path]:
-        """Remove images older than the retention period.
+        """Remove imagens mais antigas que o período de retenção.
 
-        Only files with the configured image extension are considered;
-        subdirectories and unrelated files are ignored. A failure removing
-        one file does not stop the cleanup of the others.
+        Só arquivos com a extensão de imagem configurada são considerados;
+        subdiretórios e arquivos não relacionados são ignorados. A falha ao
+        remover um arquivo não interrompe a limpeza dos demais.
 
         Returns:
-            The list of paths that were successfully removed.
+            A lista dos caminhos removidos com sucesso.
         """
         removed: List[Path] = []
         if not self._image_directory.is_dir():

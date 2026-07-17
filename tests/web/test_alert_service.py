@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from web import db_models  # noqa: F401  (registers AlertModel on Base.metadata)
-from web.alert_service import create_alert, list_alerts
+from web.alert_service import create_alert, list_alerts, mark_alert_sent
 from web.db import Base
 
 
@@ -91,3 +91,16 @@ def test_list_alerts_respects_offset(db_session):
     page = list_alerts(db_session, limit=2, offset=2)
 
     assert [alert.id for alert in page] == expected_ids_newest_first[2:4]
+
+
+def test_mark_alert_sent_sets_the_flag(db_session):
+    alert = create_alert(db_session, "Pessoa detectada", "detections/detection_1.jpg")
+
+    mark_alert_sent(db_session, alert.id)
+
+    db_session.refresh(alert)
+    assert alert.sent is True
+
+
+def test_mark_alert_sent_does_nothing_for_an_unknown_id(db_session):
+    mark_alert_sent(db_session, 9999)  # should not raise

@@ -1,7 +1,7 @@
-"""Sliding-window confirmation of person presence across frames.
+"""Confirmação por janela deslizante da presença de pessoas entre frames.
 
-This module has no dependency on OpenCV, NumPy or YOLO so it can be tested
-in isolation and reused with any boolean presence signal.
+Este módulo não depende de OpenCV, NumPy ou YOLO, então pode ser testado
+isoladamente e reutilizado com qualquer sinal booleano de presença.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from collections import deque
 
 
 class DetectionTracker:
-    """Confirms detections only after enough positive frames in a window."""
+    """Só confirma a detecção após frames positivos suficientes na janela."""
 
     def __init__(self, window_size: int, minimum_positive_frames: int) -> None:
         if window_size <= 0:
@@ -27,15 +27,15 @@ class DetectionTracker:
         self._history: deque[bool] = deque(maxlen=window_size)
 
     def update(self, person_present: bool) -> None:
-        """Record whether the latest processed frame contained a person."""
+        """Registra se o último frame processado continha uma pessoa."""
         self._history.append(person_present)
 
     def is_confirmed(self) -> bool:
-        """Return True when enough recent frames contained a person."""
+        """Retorna True quando frames recentes suficientes continham uma pessoa."""
         return sum(self._history) >= self._minimum_positive_frames
 
     def reset(self) -> None:
-        """Clear the tracking history."""
+        """Limpa o histórico de rastreamento."""
         self._history.clear()
 
     @property

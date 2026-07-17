@@ -11,9 +11,11 @@ from web.auth_service import (
     EmailAlreadyRegisteredError,
     InvalidCredentialsError,
     authenticate_user,
+    get_notification_phone_number,
     register_user,
 )
 from web.db import Base
+from web.db_models import UserModel
 
 
 @pytest.fixture
@@ -120,3 +122,29 @@ def test_register_user_handles_concurrent_duplicate_insert(db_session, monkeypat
 
     with pytest.raises(EmailAlreadyRegisteredError):
         register_user(db_session, "user@example.com", "anotherpassword", "5524981402661")
+
+
+def test_get_notification_phone_number_returns_none_when_no_users(db_session):
+    assert get_notification_phone_number(db_session) is None
+
+
+def test_get_notification_phone_number_returns_none_when_no_user_has_one(db_session):
+    db_session.add(UserModel(email="user@example.com", hashed_password="hash", phone_number=None))
+    db_session.commit()
+
+    assert get_notification_phone_number(db_session) is None
+
+
+def test_get_notification_phone_number_returns_the_earliest_registered_with_one(db_session):
+    register_user(db_session, "first@example.com", "supersecret", "5511111111111")
+    register_user(db_session, "second@example.com", "supersecret", "5522222222222")
+
+    assert get_notification_phone_number(db_session) == "5511111111111"
+
+
+def test_get_notification_phone_number_skips_users_without_one(db_session):
+    db_session.add(UserModel(email="nophone@example.com", hashed_password="hash", phone_number=None))
+    db_session.commit()
+    register_user(db_session, "haphone@example.com", "supersecret", "5533333333333")
+
+    assert get_notification_phone_number(db_session) == "5533333333333"

@@ -1,7 +1,7 @@
-"""Starts and stops the webcam monitor (``run.py``) as a child process.
+"""Inicia e para o monitor da webcam (``run.py``) como um processo filho.
 
-This lets the dashboard offer a "Monitorar" / "Encerrar" button without the
-monitor's own code (``app/``) knowing anything about the web layer.
+Isso permite que o dashboard ofereça um botão "Monitorar" / "Encerrar" sem
+que o código do monitor (``app/``) precise saber nada sobre a camada web.
 """
 
 from __future__ import annotations
@@ -22,19 +22,19 @@ STOP_TIMEOUT_SECONDS = 10
 
 
 class MonitorAlreadyRunningError(Exception):
-    """Raised when trying to start the monitor while it is already running."""
+    """Levantada ao tentar iniciar o monitor quando ele já está rodando."""
 
 
 class MonitorNotRunningError(Exception):
-    """Raised when trying to stop the monitor while it is not running."""
+    """Levantada ao tentar parar o monitor quando ele não está rodando."""
 
 
 class MonitorProcessManager:
-    """Starts, stops and reports on a single monitor subprocess.
+    """Inicia, para e informa o estado de um único subprocesso do monitor.
 
-    Only tracks processes it started itself; it has no way to detect or
-    manage a monitor instance launched outside the dashboard (e.g. directly
-    via ``python run.py`` in another terminal).
+    Só rastreia processos que ele mesmo iniciou; não tem como detectar ou
+    gerenciar uma instância do monitor iniciada fora do dashboard (ex.:
+    diretamente via ``python run.py`` em outro terminal).
     """
 
     def __init__(
@@ -59,11 +59,11 @@ class MonitorProcessManager:
         return self._process is not None and self._process.poll() is None
 
     def start(self) -> int:
-        """Launch the monitor process.
+        """Inicia o processo do monitor.
 
         Raises:
-            MonitorAlreadyRunningError: If a monitor process started by this
-                manager is already running.
+            MonitorAlreadyRunningError: Se um processo do monitor iniciado
+                por este manager já estiver rodando.
         """
         with self._lock:
             if self._is_running_locked():
@@ -74,16 +74,16 @@ class MonitorProcessManager:
             return self._process.pid
 
     def stop(self) -> None:
-        """Stop the running monitor process gracefully.
+        """Para o processo do monitor em execução, de forma graciosa.
 
-        Sends SIGINT first (equivalent to Ctrl+C), which ``app/main.py``
-        already handles to release the camera and close windows cleanly.
-        Escalates to SIGTERM and then SIGKILL only if the process does not
-        exit in time.
+        Envia SIGINT primeiro (equivalente a Ctrl+C), que o
+        ``app/main.py`` já trata para liberar a câmera e fechar as janelas
+        corretamente. Escala para SIGTERM e depois SIGKILL só se o
+        processo não sair a tempo.
 
         Raises:
-            MonitorNotRunningError: If no monitor process started by this
-                manager is currently running.
+            MonitorNotRunningError: Se nenhum processo do monitor iniciado
+                por este manager estiver rodando no momento.
         """
         with self._lock:
             if not self._is_running_locked():

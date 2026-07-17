@@ -1,6 +1,8 @@
-"""User registration and authentication logic, independent of FastAPI."""
+"""Lógica de cadastro e autenticação de usuários, independente do FastAPI."""
 
 from __future__ import annotations
+
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -11,20 +13,22 @@ from web.security import hash_password, verify_password
 
 
 class EmailAlreadyRegisteredError(Exception):
-    """Raised when trying to register an email that is already in use."""
+    """Levantada ao tentar cadastrar um e-mail que já está em uso."""
 
 
 class InvalidCredentialsError(Exception):
-    """Raised when login credentials do not match any user."""
+    """Levantada quando as credenciais de login não batem com nenhum usuário."""
 
 
-# Used only to keep authenticate_user's response time roughly constant
-# whether or not the email exists, so timing cannot reveal registered
-# emails. Never compared against successfully; it pads out the hashing cost.
+# Usado só para manter o tempo de resposta de authenticate_user
+# praticamente constante, exista ou não o e-mail — assim o tempo de
+# resposta não revela quais e-mails estão cadastrados. Nunca é comparado
+# com sucesso; só serve para gastar o mesmo tempo de hash.
 _DUMMY_PASSWORD_HASH = hash_password("dummy-password-for-timing-safety")
 
 
 def register_user(db: Session, email: str, password: str, phone_number: str) -> UserModel:
+    """Cria um novo usuário com senha em hash. Levanta erro se o e-mail já existir."""
     normalized_email = email.strip().lower()
 
     existing = db.execute(
@@ -42,8 +46,9 @@ def register_user(db: Session, email: str, password: str, phone_number: str) -> 
     try:
         db.commit()
     except IntegrityError as exc:
-        # Two concurrent registrations for the same email can both pass the
-        # SELECT check above; the DB's unique constraint is the real guard.
+        # Duas tentativas de cadastro simultâneas com o mesmo e-mail podem
+        # passar pela checagem SELECT acima; a constraint UNIQUE do banco
+        # é a garantia real contra a corrida.
         db.rollback()
         raise EmailAlreadyRegisteredError(
             f"Email {normalized_email} is already registered."
@@ -53,17 +58,35 @@ def register_user(db: Session, email: str, password: str, phone_number: str) -> 
 
 
 def authenticate_user(db: Session, email: str, password: str) -> UserModel:
+    """Verifica e-mail/senha e retorna o usuário. Levanta erro se inválidos."""
     normalized_email = email.strip().lower()
 
     user = db.execute(
         select(UserModel).where(UserModel.email == normalized_email)
     ).scalar_one_or_none()
 
-    # Always run password verification, even for an unknown email, so the
-    # response time does not leak whether the email is registered.
+    # Sempre roda a verificação de senha, mesmo para e-mail desconhecido,
+    # para o tempo de resposta não vazar se o e-mail está cadastrado.
     hash_to_check = user.hashed_password if user is not None else _DUMMY_PASSWORD_HASH
     password_matches = verify_password(password, hash_to_check)
 
     if user is None or not password_matches:
         raise InvalidCredentialsError("Invalid email or password.")
     return user
+
+
+def get_notification_phone_number(db: Session) -> Optional[str]:
+    """Retorna o telefone para onde enviar os alertas do WhatsApp.
+
+    Esta aplicação não tem uma flag explícita de "proprietário", então o
+    usuário cadastrado há mais tempo que tenha um telefone configurado é
+    tratado como o destinatário. Retorna None se nenhum usuário tiver um
+    telefone configurado ainda.
+    """
+    stmt = (
+        select(UserModel.phone_number)
+        .where(UserModel.phone_number.is_not(None))
+        .order_by(UserModel.id.asc())
+        .limit(1)
+    )
+    return db.execute(stmt).scalar_one_or_none()

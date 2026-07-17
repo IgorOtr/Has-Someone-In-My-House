@@ -1,4 +1,4 @@
-"""YOLO11n-based person detection."""
+"""Detecção de pessoas usando o modelo YOLO11n."""
 
 from __future__ import annotations
 
@@ -18,19 +18,19 @@ PERSON_CLASS_NAME = "person"
 
 
 class InferenceError(Exception):
-    """Raised when the model fails to run inference on a frame."""
+    """Levantada quando o modelo falha ao rodar a inferência em um frame."""
 
 
 def select_device() -> str:
-    """Select MPS when available, falling back to CPU."""
+    """Seleciona MPS quando disponível, com fallback para CPU."""
     return "mps" if torch.backends.mps.is_available() else "cpu"
 
 
 class PersonDetector:
-    """Loads YOLO11n once and detects people in frames.
+    """Carrega o YOLO11n uma única vez e detecta pessoas nos frames.
 
-    This class only performs inference and filtering. It does not save
-    images, control cooldowns, or read environment variables directly.
+    Esta classe só executa inferência e filtragem. Não salva imagens, não
+    controla cooldown e não lê variáveis de ambiente diretamente.
     """
 
     def __init__(
@@ -53,14 +53,15 @@ class PersonDetector:
         return self._device
 
     def detect(self, frame: np.ndarray) -> List[Detection]:
-        """Run inference on a frame and return only person detections.
+        """Roda a inferência em um frame e retorna só as detecções de pessoas.
 
-        Automatically falls back to CPU if the current device raises a
-        runtime error during inference (e.g. an unsupported MPS operation).
+        Cai automaticamente para CPU se o dispositivo atual levantar um
+        erro em tempo de execução durante a inferência (ex.: operação não
+        suportada pelo MPS).
 
         Raises:
-            InferenceError: If inference fails even after a CPU fallback
-                attempt.
+            InferenceError: Se a inferência falhar mesmo após a tentativa
+                de fallback para CPU.
         """
         try:
             return self._run_inference(frame, self._device)

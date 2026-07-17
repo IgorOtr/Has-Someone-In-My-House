@@ -1,4 +1,4 @@
-"""Structured data types shared across the application."""
+"""Tipos de dados estruturados compartilhados pela aplicação."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -7,7 +7,7 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class Detection:
-    """A single person detection produced by the detector."""
+    """Uma única detecção de pessoa produzida pelo detector."""
 
     x1: int
     y1: int
@@ -20,7 +20,7 @@ class Detection:
 
 @dataclass(frozen=True)
 class DetectionCapture:
-    """Metadata describing a saved detection image."""
+    """Metadados descrevendo uma imagem de detecção salva."""
 
     image_path: Path
     detected_at: datetime

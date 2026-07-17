@@ -1,7 +1,9 @@
-"""Application entry point and main monitoring loop.
+"""Ponto de entrada da aplicação e loop principal de monitoramento.
 
-This module only orchestrates the specialized components; it does not
-implement detection, tracking, cooldown or persistence logic itself.
+Este módulo só orquestra os componentes especializados (câmera, detector,
+tracker, controlador de captura, gerenciador de imagens, gravador de
+alertas); ele não implementa lógica de detecção, rastreamento, cooldown ou
+persistência.
 """
 
 from __future__ import annotations
@@ -42,7 +44,11 @@ _HUD_COLOR = (255, 255, 255)
 _HUD_FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 
+# -- Funções auxiliares (desenho na tela e montagem da mensagem de alerta) --
+
+
 def _draw_preview_boxes(frame: np.ndarray, detections: List[Detection]) -> None:
+    """Desenha, na janela ao vivo, um retângulo e a confiança de cada detecção."""
     for detection in detections:
         cv2.rectangle(
             frame,
@@ -65,6 +71,7 @@ def _draw_preview_boxes(frame: np.ndarray, detections: List[Detection]) -> None:
 
 
 def _build_alert_message(detections: List[Detection]) -> str:
+    """Monta a mensagem do alerta (nº de pessoas + confiança máxima)."""
     person_count = len(detections)
     highest_confidence = max((d.confidence for d in detections), default=0.0)
     plural = "s" if person_count != 1 else ""
@@ -82,6 +89,7 @@ def _draw_hud(
     person_count: int,
     cooldown_remaining: float,
 ) -> None:
+    """Desenha o painel de status (HUD) sobre o frame exibido na janela."""
     lines = [
         f"Status: {status}",
         f"FPS: {fps:.1f}  Device: {device.upper()}",
@@ -96,6 +104,7 @@ def _draw_hud(
 
 
 def run() -> None:
+    """Ponto de entrada: carrega config, monta os componentes e roda o loop principal."""
     try:
         config = load_config()
     except ConfigError as exc:
@@ -114,6 +123,7 @@ def run() -> None:
         config.capture_cooldown_seconds,
     )
 
+    # -- Composição: cada componente cuida só da sua responsabilidade --
     image_manager = ImageManager(
         image_directory=config.image_directory,
         image_format=config.image_format,
@@ -164,6 +174,7 @@ def run() -> None:
         window_created = True
 
         while True:
+            # 1. Captura o frame.
             try:
                 frame = camera.read_frame()
             except CameraError as exc:
@@ -179,6 +190,7 @@ def run() -> None:
                 instantaneous_fps = 1.0 / elapsed
                 fps = instantaneous_fps if fps == 0 else (fps * 0.9 + instantaneous_fps * 0.1)
 
+            # 2. Roda a inferência só a cada N frames e atualiza o tracker.
             if frame_index % config.process_every_n_frames == 0:
                 try:
                     last_detections = detector.detect(frame)
@@ -195,6 +207,8 @@ def run() -> None:
                     else:
                         status = STATUS_MONITORING
 
+            # 3. Se a detecção estiver confirmada e o atraso/cooldown permitirem,
+            #    salva a imagem, registra o alerta e reseta o tracker.
             if tracker.is_confirmed():
                 status = STATUS_DETECTION_CONFIRMED
                 capture_controller.notify_detection_confirmed()
@@ -216,10 +230,12 @@ def run() -> None:
             else:
                 capture_controller.cancel_pending_capture()
 
+            # 4. Roda a limpeza de imagens antigas periodicamente.
             if now - last_cleanup_time >= cleanup_interval_seconds:
                 image_manager.cleanup_expired_images()
                 last_cleanup_time = now
 
+            # 5. Atualiza a janela ao vivo com o HUD e verifica a tecla de saída.
             display_frame = frame.copy()
             _draw_preview_boxes(display_frame, last_detections)
             _draw_hud(

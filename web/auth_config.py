@@ -1,7 +1,7 @@
-"""Configuration for the web dashboard's authentication and MySQL database.
+"""Configuração de autenticação e do banco MySQL do dashboard web.
 
-Kept separate from ``app/config.py`` (the webcam monitor's configuration)
-since these settings are only relevant to the optional web layer.
+Mantida separada de ``app/config.py`` (configuração do monitor da webcam)
+porque essas opções só são relevantes para a camada web, que é opcional.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 
 
 class AuthConfigError(Exception):
-    """Raised when an authentication/database configuration value is invalid."""
+    """Levantada quando um valor de configuração de auth/banco é inválido."""
 
 
 _DB_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_]+$")
@@ -57,7 +57,7 @@ class AuthConfig:
 
     @property
     def server_database_url(self) -> str:
-        """Connection URL without a database selected, used to create it if missing."""
+        """URL de conexão sem um banco selecionado, usada para criá-lo se não existir."""
         return f"mysql+pymysql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/"
 
     @property
@@ -90,12 +90,13 @@ def _get_bool(env: Mapping[str, str], key: str) -> bool:
 
 
 def load_auth_config(env: Optional[Mapping[str, str]] = None) -> AuthConfig:
-    """Load, convert and validate the auth/database configuration.
+    """Carrega, converte e valida a configuração de autenticação/banco.
 
     Args:
-        env: Optional mapping to read values from. Defaults to
-            ``os.environ`` after loading a ``.env`` file, mainly so tests
-            can inject values without touching real environment variables.
+        env: Mapeamento opcional de onde ler os valores. Por padrão usa
+            ``os.environ`` após carregar um arquivo ``.env``, principalmente
+            para os testes injetarem valores sem depender de variáveis de
+            ambiente reais.
     """
     if env is None:
         load_dotenv()

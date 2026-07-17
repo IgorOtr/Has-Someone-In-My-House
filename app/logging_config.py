@@ -1,4 +1,4 @@
-"""Centralized logging configuration."""
+"""Configuração centralizada de logs."""
 
 from __future__ import annotations
 
@@ -9,11 +9,11 @@ _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 def configure_logging(level: str = "INFO") -> None:
-    """Configure the root logger with a consistent format.
+    """Configura o logger raiz com um formato consistente.
 
     Args:
-        level: Logging level name (e.g. ``"INFO"``, ``"DEBUG"``). Falls back
-            to ``INFO`` when the value is not a recognized level.
+        level: Nome do nível de log (ex.: ``"INFO"``, ``"DEBUG"``). Usa
+            ``INFO`` como padrão quando o valor não é um nível reconhecido.
     """
     resolved_level = logging.getLevelName(level.upper())
     if not isinstance(resolved_level, int):

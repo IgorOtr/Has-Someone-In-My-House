@@ -1,4 +1,4 @@
-"""Webcam access encapsulated behind a small, testable interface."""
+"""Acesso à webcam encapsulado atrás de uma interface pequena e testável."""
 
 from __future__ import annotations
 
@@ -12,11 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 class CameraError(Exception):
-    """Raised when the webcam cannot be opened or read from."""
+    """Levantada quando a webcam não pode ser aberta ou lida."""
 
 
 class Camera:
-    """Thin wrapper around ``cv2.VideoCapture``."""
+    """Wrapper fino em torno de ``cv2.VideoCapture``."""
 
     def __init__(self, index: int, width: int, height: int) -> None:
         self._index = index
@@ -25,10 +25,10 @@ class Camera:
         self._capture: Optional[cv2.VideoCapture] = None
 
     def open(self) -> None:
-        """Open the webcam and configure its resolution.
+        """Abre a webcam e configura sua resolução.
 
         Raises:
-            CameraError: If the device cannot be opened.
+            CameraError: Se o dispositivo não puder ser aberto.
         """
         capture = cv2.VideoCapture(self._index)
         if not capture.isOpened():
@@ -40,11 +40,11 @@ class Camera:
         self._capture = capture
 
     def read_frame(self) -> np.ndarray:
-        """Capture a single frame.
+        """Captura um único frame.
 
         Raises:
-            CameraError: If the camera is not open or the frame could not
-                be read.
+            CameraError: Se a câmera não estiver aberta ou o frame não
+                puder ser lido.
         """
         if self._capture is None:
             raise CameraError("Camera is not open.")
@@ -62,7 +62,7 @@ class Camera:
         return width, height
 
     def release(self) -> None:
-        """Release the underlying capture device, if open."""
+        """Libera o dispositivo de captura, se estiver aberto."""
         if self._capture is not None:
             self._capture.release()
             self._capture = None

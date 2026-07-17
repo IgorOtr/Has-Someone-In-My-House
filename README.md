@@ -35,7 +35,7 @@ The application is split into small, single-responsibility modules under
 | `detection_tracker.py` | Sliding-window confirmation logic. Pure Python, no CV/YOLO dependency. |
 | `capture_controller.py` | Cooldown state machine with an injectable clock. |
 | `image_manager.py` | Annotates frames, saves JPEGs with unique names, prunes expired images. |
-| `alert_recorder.py` | Best-effort MySQL alert history (see section 21) — never blocks the monitor if the database is unreachable. |
+| `alert_recorder.py` | Best-effort MySQL alert history + WhatsApp delivery (see section 21) — never blocks the monitor if the database or Z-API is unreachable. |
 | `main.py` | Composition root: wires the components together and runs the capture loop. |
 
 `run.py` at the project root is the executable entry point.
@@ -271,6 +271,13 @@ inference, and cannot start or stop the monitor. It only lists, serves and
 Tailwind CSS (via CDN, no build step), MySQL user store (via SQLAlchemy +
 PyMySQL) and JWT bearer tokens for authentication.
 
+**Structure:** `web/server.py` only builds the FastAPI app (middleware,
+lifespan, mounting the static frontend) and includes the routers under
+`web/routers/` — one module per area (`auth_router`, `detections_router`,
+`alerts_router`, `monitor_router`), each just wiring HTTP endpoints to the
+service modules (`auth_service.py`, `alert_service.py`, `gallery.py`,
+`monitor_process.py`) that hold the actual logic.
+
 ### Authentication
 
 Every dashboard API route except `/api/auth/register` and `/api/auth/login`
@@ -382,19 +389,55 @@ stops `run.py` for you, so you do not have to keep a separate terminal open:
 
 Every time the monitor saves a detection image, it also writes a row to an
 `alerts` table in the same MySQL database (`message`, `image_path`, `sent`,
-`created_at`). This is a durable history the owner can fall back on if a
-future WhatsApp message fails to send or gets lost/deleted on their phone.
-
-**WhatsApp delivery itself is not implemented yet** — `sent` always starts
-as `false`, and nothing currently reads or updates it. This groundwork only
-persists the alert.
+`created_at`), then immediately tries to deliver that same message via
+WhatsApp (see below). This is a durable history the owner can fall back on
+if a WhatsApp message fails to send or gets lost/deleted on their phone —
+`sent` reflects whether delivery actually succeeded, not just that it was
+attempted.
 
 This is wired directly into `app/main.py`, not the web dashboard: alert
-recording works whether or not `run_web.py` is running, as long as MySQL is
-reachable using the same `DB_*` variables as the dashboard. If the database
-is unreachable when the monitor starts, it logs one warning and disables
-alert recording for that run — saving detection images and the rest of the
-monitor keep working normally either way.
+recording and WhatsApp delivery both work whether or not `run_web.py` is
+running, as long as MySQL (and, for delivery, Z-API) are reachable. If the
+database is unreachable when the monitor starts, it logs one warning and
+disables alert recording for that run — saving detection images and the
+rest of the monitor keep working normally either way.
+
+#### WhatsApp delivery (Z-API)
+
+Right after an alert is recorded, the monitor sends it as a WhatsApp image
+message via [Z-API](https://www.z-api.io/) (`POST
+/instances/{instanceId}/token/{token}/send-image`) to the phone number of
+the earliest-registered dashboard user that has one set (this app has no
+explicit "owner" flag, so the first account with a phone number is treated
+as the recipient). The request body is `{"phone", "image", "caption"}`,
+where `caption` is the alert's message and `image` is the detection image
+read from disk and inlined as a base64 `data:` URI (via
+`web/image_encoder.py`) — Z-API's servers cannot reach a path on the
+monitor's local filesystem, so the image bytes travel in the request body
+itself rather than as a path or URL. On an HTTP `200` response, the
+alert's `sent` flag is set to `true`; on any other status, a network
+error, a timeout, or a failure to read the image file, the attempt is
+logged and the alert is left `sent: false` — there is no retry queue yet,
+but the row is never lost, so a future retry mechanism (or a manual
+"Enviar" action) can pick it up later.
+
+Configure the Z-API credentials in `.env`:
+
+```env
+ZAPI_INSTANCE_ID=your-zapi-instance-id
+ZAPI_TOKEN=your-zapi-token
+ZAPI_CLIENT_TOKEN=your-zapi-client-token
+```
+
+Leaving any of these unset or blank disables WhatsApp delivery entirely
+(logged once at startup) — alert history keeps working normally either
+way. A send attempt is bounded to 10 seconds; since this runs synchronously
+in the monitor's main loop, a slow or unreachable Z-API delays the next
+captured frame by up to that long. There is no per-message retry and no
+rate limiting on outgoing messages — a person standing continuously in
+frame with `CAPTURE_COOLDOWN_SECONDS=0` will trigger one WhatsApp send per
+confirmed detection cycle (roughly every `CAPTURE_DELAY_SECONDS` while they
+remain in view).
 
 Browse the history at `/alerts.html` (linked from the dashboard as
 **"Histórico de Alertas"**), or via `GET /api/alerts` (`limit`, `offset`;
@@ -425,12 +468,21 @@ HasSomeoneInMyHosue/
 ├── web/
 │   ├── __init__.py
 │   ├── server.py
+│   ├── routers/
+│   │   ├── __init__.py
+│   │   ├── auth_router.py
+│   │   ├── detections_router.py
+│   │   ├── alerts_router.py
+│   │   └── monitor_router.py
 │   ├── dependencies.py
 │   ├── gallery.py
 │   ├── monitor_process.py
 │   ├── auth_config.py
 │   ├── auth_service.py
 │   ├── alert_service.py
+│   ├── whatsapp_config.py
+│   ├── whatsapp_client.py
+│   ├── image_encoder.py
 │   ├── security.py
 │   ├── rate_limiter.py
 │   ├── db.py
@@ -459,6 +511,9 @@ HasSomeoneInMyHosue/
 │       ├── test_auth_config.py
 │       ├── test_auth_service.py
 │       ├── test_alert_service.py
+│       ├── test_whatsapp_config.py
+│       ├── test_whatsapp_client.py
+│       ├── test_image_encoder.py
 │       ├── test_security.py
 │       ├── test_rate_limiter.py
 │       ├── test_db_migrations.py

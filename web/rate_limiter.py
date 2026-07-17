@@ -1,8 +1,8 @@
-"""A minimal in-memory sliding-window rate limiter.
+"""Rate limiter mínimo, em memória, com janela deslizante.
 
-Process-local state only (no Redis/external store) — adequate for a
-single-instance local dashboard, not meant to survive restarts or multiple
-server processes.
+Estado local ao processo apenas (sem Redis/armazenamento externo) —
+adequado para um dashboard local de instância única; não sobrevive a
+reinícios nem funciona com múltiplos processos do servidor.
 """
 
 from __future__ import annotations
@@ -14,6 +14,8 @@ from typing import Deque, Dict
 
 
 class InMemoryRateLimiter:
+    """Limita tentativas por chave (ex.: IP) a N por janela de tempo."""
+
     def __init__(self, max_attempts: int, window_seconds: float) -> None:
         if max_attempts <= 0:
             raise ValueError("max_attempts must be greater than 0.")
@@ -25,7 +27,7 @@ class InMemoryRateLimiter:
         self._lock = threading.Lock()
 
     def is_allowed(self, key: str) -> bool:
-        """Record an attempt for ``key`` and return whether it is within limits."""
+        """Registra uma tentativa para ``key`` e retorna se está dentro do limite."""
         now = time.monotonic()
         with self._lock:
             attempts = self._attempts[key]

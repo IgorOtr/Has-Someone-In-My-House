@@ -1,7 +1,7 @@
-"""Read-only access to saved detection images for the web dashboard.
+"""Acesso somente-leitura às imagens de detecção salvas, para o dashboard.
 
-This module never runs inference or touches the webcam; it only lists,
-serves and (optionally) deletes files that the monitor already saved to
+Este módulo nunca roda inferência nem toca a webcam; ele só lista, serve
+e (opcionalmente) apaga arquivos que o monitor já salvou em
 ``IMAGE_DIRECTORY``.
 """
 
@@ -24,7 +24,7 @@ class DetectionFile:
 
 
 class GalleryService:
-    """Lists, serves and deletes saved detection images."""
+    """Lista, serve e apaga imagens de detecção salvas."""
 
     def __init__(self, image_directory: Path, image_format: str) -> None:
         self._image_directory = Path(image_directory)
@@ -45,7 +45,7 @@ class GalleryService:
         return max(files, key=lambda item: item.detected_at)
 
     def resolve_path(self, filename: str) -> Optional[Path]:
-        """Return the real path for a filename, or None if it is invalid/unsafe."""
+        """Retorna o caminho real de um arquivo, ou None se for inválido/inseguro."""
         if not self._is_valid_filename(filename):
             return None
 

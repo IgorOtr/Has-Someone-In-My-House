@@ -1,9 +1,9 @@
-"""Application configuration loading and validation.
+"""Carregamento e validação da configuração do monitor.
 
-Reads configuration exclusively from environment variables (populated from a
-``.env`` file via ``python-dotenv`` when present), validates every value and
-converts it to the correct type. No other module should read environment
-variables directly.
+Lê a configuração exclusivamente de variáveis de ambiente (populadas a
+partir de um arquivo ``.env`` via ``python-dotenv``, quando presente),
+valida cada valor e converte para o tipo correto. Nenhum outro módulo do
+monitor deve ler variáveis de ambiente diretamente.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import os
 
 
 class ConfigError(Exception):
-    """Raised when a configuration value is missing or invalid."""
+    """Levantada quando um valor de configuração está ausente ou é inválido."""
 
 
 @dataclass(frozen=True)
@@ -101,18 +101,18 @@ def _get_str(env: Mapping[str, str], key: str) -> str:
 def load_config(
     env: Optional[Mapping[str, str]] = None, dotenv_path: Optional[Path] = None
 ) -> AppConfig:
-    """Load, convert and validate the application configuration.
+    """Carrega, converte e valida a configuração da aplicação.
 
     Args:
-        env: Optional mapping to read values from. Defaults to
-            ``os.environ`` after loading a ``.env`` file (if present). This
-            parameter exists mainly to make the function testable without
-            touching real environment variables.
-        dotenv_path: Optional explicit path to a ``.env`` file.
+        env: Mapeamento opcional de onde ler os valores. Por padrão usa
+            ``os.environ`` após carregar um arquivo ``.env`` (se existir).
+            Esse parâmetro existe principalmente para tornar a função
+            testável sem depender de variáveis de ambiente reais.
+        dotenv_path: Caminho opcional e explícito para um arquivo ``.env``.
 
     Raises:
-        ConfigError: If any configuration value is missing, malformed or
-            fails validation.
+        ConfigError: Se algum valor de configuração estiver ausente,
+            malformado ou falhar na validação.
     """
     if env is None:
         load_dotenv(dotenv_path=dotenv_path)
