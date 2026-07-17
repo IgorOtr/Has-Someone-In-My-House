@@ -1,0 +1,18 @@
+ultralytics>=8.3.0
+opencv-python>=4.10.0
+torch>=2.3.0
+torchvision>=0.18.0
+python-dotenv>=1.0.1
+pytest>=8.2.0
+
+# Local read-only web dashboard (web/)
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+httpx>=0.27.0
+
+# Web dashboard authentication (email/password login backed by MySQL)
+sqlalchemy>=2.0.0
+pymysql>=1.1.0
+cryptography>=42.0.0
+pyjwt>=2.8.0
+email-validator>=2.0.0

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cadastro — Monitor de Detecção de Pessoas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-full bg-gray-950 text-gray-100 flex items-center justify-center">
+  <div class="w-full max-w-sm bg-gray-900 border border-gray-800 rounded-lg p-6">
+    <h1 class="text-xl font-semibold mb-1">Criar conta</h1>
+    <p class="text-gray-400 text-sm mb-6">Cadastre-se para acessar o painel do monitor.</p>
+
+    <form id="register-form" class="space-y-4">
+      <div>
+        <label class="block text-sm text-gray-400 mb-1" for="email">E-mail</label>
+        <input
+          id="email"
+          type="email"
+          required
+          autocomplete="username"
+          class="w-full rounded-md bg-gray-800 border border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <div>
+        <label class="block text-sm text-gray-400 mb-1" for="password">Senha</label>
+        <input
+          id="password"
+          type="password"
+          required
+          minlength="8"
+          autocomplete="new-password"
+          class="w-full rounded-md bg-gray-800 border border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <p class="text-xs text-gray-500 mt-1">Mínimo de 8 caracteres.</p>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-400 mb-1" for="confirm-password">Confirmar senha</label>
+        <input
+          id="confirm-password"
+          type="password"
+          required
+          autocomplete="new-password"
+          class="w-full rounded-md bg-gray-800 border border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <p id="error-message" class="hidden text-sm text-red-400"></p>
+      <p id="success-message" class="hidden text-sm text-green-400"></p>
+
+      <button
+        type="submit"
+        class="w-full bg-blue-600 hover:bg-blue-500 transition rounded-md py-2 text-sm font-medium"
+      >
+        Cadastrar
+      </button>
+    </form>
+
+    <p class="text-sm text-gray-500 mt-4 text-center">
+      Já tem conta? <a href="/login.html" class="text-blue-400 hover:underline">Entrar</a>
+    </p>
+  </div>
+
+  <script src="/js/auth.js"></script>
+  <script>
+    if (getToken()) {
+      window.location.href = "/";
+    }
+
+    document.getElementById("register-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const confirmPassword = document.getElementById("confirm-password").value;
+      const errorMessage = document.getElementById("error-message");
+      const successMessage = document.getElementById("success-message");
+      errorMessage.classList.add("hidden");
+      successMessage.classList.add("hidden");
+
+      if (password !== confirmPassword) {
+        errorMessage.textContent = "As senhas não coincidem.";
+        errorMessage.classList.remove("hidden");
+        return;
+      }
+
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        const detail = body.detail;
+        errorMessage.textContent =
+          typeof detail === "string" ? detail : "Não foi possível criar a conta.";
+        errorMessage.classList.remove("hidden");
+        return;
+      }
+
+      successMessage.textContent = "Conta criada! Redirecionando para o login...";
+      successMessage.classList.remove("hidden");
+      setTimeout(() => {
+        window.location.href = "/login.html";
+      }, 1200);
+    });
+  </script>
+</body>
+</html>

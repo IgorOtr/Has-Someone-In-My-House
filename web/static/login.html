@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Entrar — Monitor de Detecção de Pessoas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-full bg-gray-950 text-gray-100 flex items-center justify-center">
+  <div class="w-full max-w-sm bg-gray-900 border border-gray-800 rounded-lg p-6">
+    <h1 class="text-xl font-semibold mb-1">Entrar</h1>
+    <p class="text-gray-400 text-sm mb-6">Acesse o painel do monitor de detecção.</p>
+
+    <form id="login-form" class="space-y-4">
+      <div>
+        <label class="block text-sm text-gray-400 mb-1" for="email">E-mail</label>
+        <input
+          id="email"
+          type="email"
+          required
+          autocomplete="username"
+          class="w-full rounded-md bg-gray-800 border border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <div>
+        <label class="block text-sm text-gray-400 mb-1" for="password">Senha</label>
+        <input
+          id="password"
+          type="password"
+          required
+          autocomplete="current-password"
+          class="w-full rounded-md bg-gray-800 border border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <p id="error-message" class="hidden text-sm text-red-400"></p>
+
+      <button
+        type="submit"
+        class="w-full bg-blue-600 hover:bg-blue-500 transition rounded-md py-2 text-sm font-medium"
+      >
+        Entrar
+      </button>
+    </form>
+
+    <p class="text-sm text-gray-500 mt-4 text-center">
+      Não tem conta? <a href="/register.html" class="text-blue-400 hover:underline">Cadastre-se</a>
+    </p>
+  </div>
+
+  <script src="/js/auth.js"></script>
+  <script>
+    if (getToken()) {
+      window.location.href = "/";
+    }
+
+    document.getElementById("login-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const errorMessage = document.getElementById("error-message");
+      errorMessage.classList.add("hidden");
+
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        errorMessage.textContent = body.detail || "Não foi possível entrar.";
+        errorMessage.classList.remove("hidden");
+        return;
+      }
+
+      const data = await response.json();
+      setToken(data.access_token);
+      window.location.href = "/";
+    });
+  </script>
+</body>
+</html>
